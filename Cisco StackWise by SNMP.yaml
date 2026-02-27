@@ -1,0 +1,272 @@
+zabbix_export:
+  version: '7.4'
+  template_groups:
+    - uuid: 96c4f22da4274b94b4ba668776cbc4df
+      name: Cisco
+  templates:
+    - uuid: a1b2c3d4e5f64a5b8c9d0e1f2a3b4c5d
+      template: 'Cisco StackWise by SNMP'
+      name: 'Cisco StackWise by SNMP'
+      description: |
+        Template for monitoring Cisco StackWise switch stack members via SNMP.
+        Monitors switch role, status, priority, power.
+        MIB: CISCO-STACKWISE-MIB (1.3.6.1.4.1.9.9.500)
+        Tested on Cisco Catalyst IOS.
+      groups:
+        - name: Cisco
+      discovery_rules:
+        - uuid: b1c2d3e4f5a64b5c8d9e0f1a2b3c4d5e
+          name: 'StackWise members discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#SWITCH_ROLE},1.3.6.1.4.1.9.9.500.1.2.1.1.3,{#SWITCH_NUM},1.3.6.1.4.1.9.9.500.1.2.1.1.1]'
+          key: stackwise.discovery
+          delay: 1h
+          description: |
+            Discovery of StackWise stack members.
+            1.3.6.1.4.1.9.9.500.1.2.1.1.3 = cswSwitchRole
+            {#SNMPINDEX} = switch index in stack (e.g. 1000, 2000)
+          item_prototypes:
+            - uuid: d2e3f4a5b6c74d5e8f9a0b1c2d3e4f5a
+              name: 'Switch [{#SWITCH_NUM}]: Stack number at next reload'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.9.9.500.1.2.1.1.2.{#SNMPINDEX}'
+              key: 'stackwise.num_at_reload[{#SNMPINDEX}]'
+              delay: 5m
+              history: 15d
+              trends: '0'
+              description: 'cswSwitchNumNextReload - stack number assigned at next reload.'
+              preprocessing:
+                - type: DISCARD_UNCHANGED_HEARTBEAT
+                  parameters:
+                    - 1h
+              tags:
+                - tag: component
+                  value: stack
+            - uuid: b3c4d5e6f7a84b5c8d9e0f1a2b3c4d5f
+              name: 'Switch [{#SWITCH_NUM}]: Power budget'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.9.9.500.1.2.1.1.9.{#SNMPINDEX}'
+              key: 'stackwise.power_budget[{#SNMPINDEX}]'
+              delay: 5m
+              history: 15d
+              units: W
+              description: 'cswSwitchPowerBudget - total power budget available on this stack member (Watts).'
+              preprocessing:
+                - type: DISCARD_UNCHANGED_HEARTBEAT
+                  parameters:
+                    - 1h
+              tags:
+                - tag: component
+                  value: stack
+            - uuid: c3d4e5f6a7b84c5d8e9f0a1b2c3d4e6f
+              name: 'Switch [{#SWITCH_NUM}]: Current power consumption'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.9.9.500.1.2.1.1.13.{#SNMPINDEX}'
+              key: 'stackwise.power_current[{#SNMPINDEX}]'
+              delay: 5m
+              history: 15d
+              units: W
+              description: 'cswSwitchCurrentPower - current power consumption of this stack member (Watts).'
+              preprocessing:
+                - type: DISCARD_UNCHANGED_HEARTBEAT
+                  parameters:
+                    - 1h
+              tags:
+                - tag: component
+                  value: stack
+            - uuid: c2d3e4f5a6b74c5d8e9f0a1b2c3d4e5f
+              name: 'Switch [{#SWITCH_NUM}]: Priority'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.9.9.500.1.2.1.1.4.{#SNMPINDEX}'
+              key: 'stackwise.priority[{#SNMPINDEX}]'
+              delay: 5m
+              history: 15d
+              trends: '0'
+              description: 'cswSwitchPriority - priority value used to elect new stack master. Higher = wins.'
+              preprocessing:
+                - type: DISCARD_UNCHANGED_HEARTBEAT
+                  parameters:
+                    - 1h
+              tags:
+                - tag: component
+                  value: stack
+            - uuid: c1d2e3f4a5b64c5d8e9f0a1b2c3d4e5f
+              name: 'Switch [{#SWITCH_NUM}]: Role'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.9.9.500.1.2.1.1.3.{#SNMPINDEX}'
+              key: 'stackwise.role[{#SNMPINDEX}]'
+              delay: 5m
+              history: 15d
+              trends: '0'
+              description: 'cswSwitchRole - whether the switch is stack master or member.'
+              valuemap:
+                name: cswSwitchRole
+              preprocessing:
+                - type: DISCARD_UNCHANGED_HEARTBEAT
+                  parameters:
+                    - 1h
+              tags:
+                - tag: component
+                  value: stack
+              trigger_prototypes:
+                - uuid: d1e2f3a4b5c64d5e8f9a0b1c2d3e4f5a
+                  expression: 'change(/Cisco StackWise by SNMP/stackwise.role[{#SNMPINDEX}])=1'
+                  name: 'Cisco StackWise: Switch [{#SWITCH_NUM}] role changed'
+                  priority: WARNING
+                  description: 'Stack master role has changed. Could indicate a failover event.'
+                  manual_close: 'YES'
+                  tags:
+                    - tag: scope
+                      value: notice
+            - uuid: e1f2a3b4c5d64e5f8a9b0c1d2e3f4a5b
+              name: 'Switch [{#SWITCH_NUM}]: Status'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.9.9.500.1.2.1.1.6.{#SNMPINDEX}'
+              key: 'stackwise.status[{#SNMPINDEX}]'
+              delay: 5m
+              history: 30d
+              trends: '0'
+              description: |
+                cswSwitchState - current status of the stack member:
+                1-waiting, 2-progressing, 3-added, 4-ready,
+                5-sdmMismatch, 6-verMismatch, 7-featureMismatch,
+                8-newMasterInit, 9-provisioned, 10-invalid, 11-removed
+              valuemap:
+                name: cswSwitchStatus
+              preprocessing:
+                - type: DISCARD_UNCHANGED_HEARTBEAT
+                  parameters:
+                    - 1h
+              tags:
+                - tag: component
+                  value: stack
+              trigger_prototypes:
+                - uuid: f1a2b3c4d5e64f5a8b9c0d1e2f3a4b5c
+                  expression: 'last(/Cisco StackWise by SNMP/stackwise.status[{#SNMPINDEX}])<>4 and last(/Cisco StackWise by SNMP/stackwise.status[{#SNMPINDEX}])<>8 and last(/Cisco StackWise by SNMP/stackwise.status[{#SNMPINDEX}])<>9'
+                  name: 'Cisco StackWise: Switch [{#SWITCH_NUM}] is not Ready'
+                  priority: HIGH
+                  description: 'Stack member is not in Ready state. Check physical connection and software compatibility.'
+                  tags:
+                    - tag: scope
+                      value: availability
+                - uuid: a2b3c4d5e6f74a5b8c9d0e1f2a3b4c5d
+                  expression: 'last(/Cisco StackWise by SNMP/stackwise.status[{#SNMPINDEX}])=5 or last(/Cisco StackWise by SNMP/stackwise.status[{#SNMPINDEX}])=6 or last(/Cisco StackWise by SNMP/stackwise.status[{#SNMPINDEX}])=7'
+                  name: 'Cisco StackWise: Switch [{#SWITCH_NUM}] mismatch detected'
+                  priority: HIGH
+                  description: 'SDM, version or feature mismatch detected on stack member.'
+                  tags:
+                    - tag: scope
+                      value: availability
+                - uuid: b2c3d4e5f6a74b5c8d9e0f1a2b3c4d5e
+                  expression: 'last(/Cisco StackWise by SNMP/stackwise.status[{#SNMPINDEX}])=11'
+                  name: 'Cisco StackWise: Switch [{#SWITCH_NUM}] removed from stack'
+                  priority: DISASTER
+                  description: 'Stack member has been removed from the stack.'
+                  tags:
+                    - tag: scope
+                      value: availability
+          trigger_prototypes:
+            - uuid: d3e4f5a6b7c84d5e8f9a0b1c2d3e4f6a
+              expression: 'last(/Cisco StackWise by SNMP/stackwise.power_current[{#SNMPINDEX}]) > last(/Cisco StackWise by SNMP/stackwise.power_budget[{#SNMPINDEX}]) * 0.9'
+              name: 'Cisco StackWise: Switch [{#SWITCH_NUM}] power consumption above 90%'
+              priority: WARNING
+              description: 'Power consumption exceeds 90% of available power budget.'
+              tags:
+                - tag: scope
+                  value: capacity
+        - uuid: 620a26e487764d8abb2f36daf72bb8fd
+          name: 'StackWise power ports discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#PORT_NAME},1.3.6.1.4.1.9.9.500.1.3.2.1.7,{#SWITCH_IDX},1.3.6.1.4.1.9.9.500.1.3.2.1.4]'
+          key: stackwise.ports.discovery
+          delay: 1h
+          lifetime: 1d
+          item_prototypes:
+            - uuid: dc840180032f413685da4d505c22c76d
+              name: 'Stack power port [SW{#SWITCH_IDX} - {#PORT_NAME}]: Power'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.9.9.500.1.3.2.1.6.{#SNMPINDEX}'
+              key: 'stackwise.powerport.power[{#SNMPINDEX}]'
+              units: W
+              tags:
+                - tag: component
+                  value: stack
+            - uuid: 75479b80a2a744b1a04ed5e11567822c
+              name: 'Stack power port [SW{#SWITCH_IDX} - {#PORT_NAME}]: Status'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.9.9.500.1.3.2.1.2.{#SNMPINDEX}'
+              key: 'stackwise.powerport.status[{#SNMPINDEX}]'
+              trends: '0'
+              valuemap:
+                name: cswStackPowerPortStatus
+              tags:
+                - tag: component
+                  value: stack
+              trigger_prototypes:
+                - uuid: 4f68811a335940a8bdebff1716e7b2ce
+                  expression: 'last(/Cisco StackWise by SNMP/stackwise.powerport.status[{#SNMPINDEX}])=2'
+                  name: 'Stack power port [SW{#SWITCH_IDX} - {#PORT_NAME}]: Link is DOWN'
+                  priority: DISASTER
+                  tags:
+                    - tag: scope
+                      value: availability
+                - uuid: d2d0e5d357874d359dc8caa49a20f3c8
+                  expression: 'change(/Cisco StackWise by SNMP/stackwise.powerport.status[{#SNMPINDEX}])<>0'
+                  name: 'Stack power port [SW{#SWITCH_IDX} - {#PORT_NAME}]: Status changed'
+                  priority: INFO
+                  tags:
+                    - tag: scope
+                      value: notice
+      tags:
+        - tag: class
+          value: network
+        - tag: target
+          value: cisco
+        - tag: target
+          value: cisco-catalyst
+        - tag: target
+          value: stackwise
+      valuemaps:
+        - uuid: a8222b5be9bc443880d82d15a0738f35
+          name: cswStackPowerPortStatus
+          mappings:
+            - value: '1'
+              newvalue: up
+            - value: '2'
+              newvalue: down
+        - uuid: b3c4d5e6f7a84b5c8d9e0f1a2b3c4d5e
+          name: cswSwitchRole
+          mappings:
+            - value: '1'
+              newvalue: master
+            - value: '2'
+              newvalue: member
+            - value: '3'
+              newvalue: notMember
+            - value: '4'
+              newvalue: standby
+        - uuid: c3d4e5f6a7b84c5d8e9f0a1b2c3d4e5f
+          name: cswSwitchStatus
+          mappings:
+            - value: '1'
+              newvalue: waiting
+            - value: '2'
+              newvalue: progressing
+            - value: '3'
+              newvalue: added
+            - value: '4'
+              newvalue: ready
+            - value: '5'
+              newvalue: sdmMismatch
+            - value: '6'
+              newvalue: verMismatch
+            - value: '7'
+              newvalue: featureMismatch
+            - value: '8'
+              newvalue: newMasterInit
+            - value: '9'
+              newvalue: provisioned
+            - value: '10'
+              newvalue: invalid
+            - value: '11'
+              newvalue: removed
